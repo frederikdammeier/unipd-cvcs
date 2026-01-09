@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=ddptrain
+#SBATCH --job-name=ddpval
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --nodes=1
 #SBATCH --output=logs/%x%j.out
-#SBATCH --partition=paula
+#SBATCH --partition=clara
 #SBATCH --mem=64G
 
 module load Anaconda3
@@ -31,10 +31,15 @@ export MASTER_PORT=$PORT
 echo "MASTER_ADDR is $MASTER_ADDR"
 ping -c 1 $MASTER_ADDR
 
-torchrun \
-  --nproc_per_node=1 \
+python -m torch.distributed.run \
+  --nproc-per-node=8 \
   --nnodes=$SLURM_JOB_NUM_NODES \
-  --node_rank=$SLURM_NODEID \
-  --rdzv_backend=c10d \
-  --rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT \
-  coco-inference.py
+  --node-rank=$SLURM_NODEID \
+  --rdzv-backend=c10d \
+  --rdzv-endpoint=$MASTER_ADDR:$MASTER_PORT \
+  coco-inference.py \
+    --images_path /home/sc.uni-leipzig.de/kv99fuda/dev/Repositories/unipd-cvcs/coco/val2017 \
+    --annotations_path /home/sc.uni-leipzig.de/kv99fuda/dev/Repositories/unipd-cvcs/coco/annotations/instances_val2017.json \
+    --model retinanet_resnet50_fpn_v2 \
+    --output_path /home/sc.uni-leipzig.de/kv99fuda/dev/Repositories/unipd-cvcs/inference_results/retinanet_resnet50_fpn_v2_cocoval2017.json \
+    --batch_size 8
