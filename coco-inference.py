@@ -37,12 +37,8 @@ def get_model(model_name: str, num_classes: int = 91, pretrained: bool = True):
         'fcos_resnet50_fpn': models.detection.fcos_resnet50_fpn,
         'fasterrcnn_resnet50_fpn': models.detection.fasterrcnn_resnet50_fpn,
         'fasterrcnn_resnet50_fpn_v2': models.detection.fasterrcnn_resnet50_fpn_v2,
-        'fasterrcnn_resnet101_fpn': models.detection.fasterrcnn_resnet101_fpn,
-        'fasterrcnn_mobilenet_v3_large_fpn': models.detection.fasterrcnn_mobilenet_v3_large_fpn,
         'retinanet_resnet50_fpn': models.detection.retinanet_resnet50_fpn,
         'retinanet_resnet50_fpn_v2': models.detection.retinanet_resnet50_fpn_v2,
-        'ssd300_vgg16': models.detection.ssd300_vgg16,
-        'ssdlite320_mobilenet_v3_large': models.detection.ssdlite320_mobilenet_v3_large,
     }
     
     if model_name not in detection_models:
