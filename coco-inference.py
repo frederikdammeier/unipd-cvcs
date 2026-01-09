@@ -21,13 +21,13 @@ from torchvision.transforms import ToTensor
 from tqdm import tqdm
 
 
-def get_model(model_name: str, num_classes: int = 80, pretrained: bool = True):
+def get_model(model_name: str, num_classes: int = 91, pretrained: bool = True):
     """
     Load a pretrained detection model from torchvision.models.detection.
     
     Args:
         model_name: Name of the model (e.g., 'fasterrcnn_resnet50_fpn')
-        num_classes: Number of classes (default: 80 for COCO)
+        num_classes: Number of classes (default: 91 for COCO)
         pretrained: Whether to load pretrained weights
     
     Returns:
@@ -191,8 +191,8 @@ def main():
                         help='Number of workers for data loading (default: 4)')
     parser.add_argument('--conf_threshold', type=float, default=0.5,
                         help='Confidence threshold for predictions (default: 0.5)')
-    parser.add_argument('--num_classes', type=int, default=80,
-                        help='Number of classes in the model (default: 80 for COCO)')
+    parser.add_argument('--num_classes', type=int, default=91,
+                        help='Number of classes in the model (default: 91 for COCO)')
     parser.add_argument('--device', type=str, default='cuda',
                         help='Device to use (default: cuda)')
     parser.add_argument('--no_pretrained', action='store_true',
