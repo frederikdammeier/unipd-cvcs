@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 from torchvision import models
 from torchvision.datasets import CocoDetection
 from torchvision.transforms import functional as F
+from torchvision.transforms import PILToTensor
 from tqdm import tqdm
 
 
@@ -231,6 +232,7 @@ def main():
     dataset = CocoDetectionWithImageId(
         root=args.images_path,
         annFile=args.annotations_path,
+        transform=PILToTensor,
     )
     
     # Create sampler and dataloader
