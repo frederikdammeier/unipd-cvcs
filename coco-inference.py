@@ -17,18 +17,17 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
 from torchvision import models
 from torchvision.datasets import CocoDetection
-from torchvision.transforms import functional as F
-from torchvision.transforms import PILToTensor
+from torchvision.transforms import ToTensor
 from tqdm import tqdm
 
 
-def get_model(model_name: str, num_classes: int = 91, pretrained: bool = True):
+def get_model(model_name: str, num_classes: int = 80, pretrained: bool = True):
     """
     Load a pretrained detection model from torchvision.models.detection.
     
     Args:
         model_name: Name of the model (e.g., 'fasterrcnn_resnet50_fpn')
-        num_classes: Number of classes (default: 91 for COCO)
+        num_classes: Number of classes (default: 80 for COCO)
         pretrained: Whether to load pretrained weights
     
     Returns:
@@ -46,7 +45,7 @@ def get_model(model_name: str, num_classes: int = 91, pretrained: bool = True):
         raise ValueError(f"Model {model_name} not found. Available: {list(detection_models.keys())}")
     
     model_fn = detection_models[model_name]
-    model = model_fn(pretrained=pretrained, num_classes=num_classes)
+    model = model_fn(weights="DEFAULT", num_classes=num_classes)
     return model
 
 
@@ -192,8 +191,8 @@ def main():
                         help='Number of workers for data loading (default: 4)')
     parser.add_argument('--conf_threshold', type=float, default=0.5,
                         help='Confidence threshold for predictions (default: 0.5)')
-    parser.add_argument('--num_classes', type=int, default=91,
-                        help='Number of classes in the model (default: 91 for COCO)')
+    parser.add_argument('--num_classes', type=int, default=80,
+                        help='Number of classes in the model (default: 80 for COCO)')
     parser.add_argument('--device', type=str, default='cuda',
                         help='Device to use (default: cuda)')
     parser.add_argument('--no_pretrained', action='store_true',
@@ -232,7 +231,7 @@ def main():
     dataset = CocoDetectionWithImageId(
         root=args.images_path,
         annFile=args.annotations_path,
-        transform=PILToTensor,
+        transform=ToTensor(),
     )
     
     # Create sampler and dataloader
