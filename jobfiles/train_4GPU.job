@@ -31,7 +31,7 @@ export MASTER_PORT=$PORT
 echo "MASTER_ADDR is $MASTER_ADDR"
 ping -c 1 $MASTER_ADDR
 
-torchrun \
+python -m torch.distributed.run \
   --nproc-per-node=8 \
   --nnodes=$SLURM_JOB_NUM_NODES \
   --node-rank=$SLURM_NODEID \
