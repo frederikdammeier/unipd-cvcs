@@ -3,7 +3,7 @@ COCO Evaluation with Size-Based Analysis.
 
 Usage:
     python eval/eval_coco_size.py --pred predictions.json
-    python eval/eval_coco_size.py --gt path/to/gt.json --pred predictions.json --out results.json
+    python eval/eval_coco_size.py --gt coco/annotations/instances_val2017.json --pred /home/sc.uni-leipzig.de/kv99fuda/dev/Repositories/cascade-detr/cascade_dn_detr/inference-results/cascade_dn_detr_01_cocoval2017.json
 """
 
 import argparse

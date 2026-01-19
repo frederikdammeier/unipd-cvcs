@@ -1,0 +1,43 @@
+#!/bin/bash
+#SBATCH --job-name=ddpval
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=64G
+#SBATCH --partition=clara
+#SBATCH --output=logs/%x%j.out
+
+module load Anaconda3
+module load CUDA/12.6.0
+
+eval "$(conda shell.bash hook)"
+conda activate unipd-cvcs
+
+# ---- Networking & NCCL (still valid) ----
+export NCCL_SOCKET_IFNAME=bond0
+export GLOO_SOCKET_IFNAME=bond0
+export NCCL_DEBUG=INFO
+export NCCL_IB_DISABLE=1
+export NCCL_P2P_DISABLE=1
+export NCCL_USE_V4ONLY=1
+export PYTORCH_ALLOC_CONF=expandable_segments:True
+
+# ---- Torch Distributed (Torch 2.x) ----
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+# MASTER_ADDR and MASTER_PORT are automatically handled by torchrun
+# when running single-node jobs, so no manual setup is needed
+
+echo "Running on node: $(hostname)"
+echo "GPUs visible: $CUDA_VISIBLE_DEVICES"
+
+python -m torch.distributed.run \
+  --standalone \
+  --nproc-per-node=1 \
+  coco-inference.py \
+    --images_path /home/sc.uni-leipzig.de/kv99fuda/dev/Repositories/unipd-cvcs/coco/val2017 \
+    --annotations_path /home/sc.uni-leipzig.de/kv99fuda/dev/Repositories/unipd-cvcs/coco/annotations/instances_val2017.json \
+    --model retinanet_resnet50_fpn_v2 \
+    --output_path /home/sc.uni-leipzig.de/kv99fuda/dev/Repositories/unipd-cvcs/inference_results/retinanet_resnet50_fpn_v2_cocoval2017.json \
+    --batch_size 8
