@@ -6,6 +6,9 @@ Evaluates AP across 7 bins based on object longest edge (max(w, h)).
 Usage:
     python eval/eval_longest_edge.py --pred predictions.json
     python eval/eval_longest_edge.py --gt path/to/gt.json --pred predictions.json --out results.json
+    python eval/eval_longest_edge.py --gt coco/annotations/instances_val2017.json --pred inference_results/cascade_dn_detr_005_cocoval2017.json --out results/cascadedetr_longest_edge.json
+    python eval/eval_longest_edge.py --gt coco/annotations/instances_val2017.json --pred inference_results/fasterrcnn_resnet50_fpn_v2_cocoval2017.json --out results/fasterrcnn_longest_edge.json
+    python eval/eval_longest_edge.py --gt coco/annotations/instances_val2017.json --pred inference_results/retinanet_resnet50_fpn_v2_cocoval2017.json --out results/retinanet_longest_edge.json
 """
 
 import argparse
@@ -19,13 +22,13 @@ from pycocotools.cocoeval import COCOeval
 
 # Longest edge bins (max(w, h) thresholds)
 EDGE_BINS = {
-    "tiny": (0, 16),
-    "xs": (16, 32),
-    "small": (32, 64),
-    "medium": (64, 128),
-    "large": (128, 256),
-    "xl": (256, 512),
-    "huge": (512, float("inf")),
+    "xxs": (0, 12),
+    "xs": (12, 20),
+    "s": (20, 32),
+    "m": (32, 64),
+    "l": (64, 128),
+    "xl": (128, 256),
+    "xxl": (256, float("inf")),
 }
 
 
@@ -184,6 +187,50 @@ def eval_edge_bin(coco_gt, predictions, bin_name, edge_min, edge_max):
         "gt_count": len(filtered_ann_ids),
     }
 
+def eval_edge_bin_coco_style(coco_gt, predictions, bin_name, edge_min, edge_max):
+    import copy
+    coco_gt_copy = copy.deepcopy(coco_gt)
+
+    ann_ids = coco_gt_copy.getAnnIds()
+    anns = coco_gt_copy.loadAnns(ann_ids)
+
+    # Set ignore flag
+    for ann in anns:
+        width, height = ann['bbox'][2], ann['bbox'][3]
+        longest_edge = max(width, height)
+        if longest_edge < edge_min or longest_edge >= edge_max:
+            ann['ignore'] = 1
+        else:
+            ann['ignore'] = 0
+
+    gt_count = sum(1 for ann in anns if ann['ignore'] == 0)
+    if gt_count == 0:
+        return {"AP": 0.0, "AP50": 0.0, "AP75": 0.0, "gt_count": 0, "bin": bin_name}
+
+    # Load predictions
+    coco_dt = coco_gt_copy.loadRes(predictions)
+
+    # COCOeval
+    coco_eval = COCOeval(coco_gt_copy, coco_dt, iouType="bbox")
+    coco_eval.evaluate()
+    coco_eval.accumulate()
+
+    # Safely extract stats
+    if hasattr(coco_eval, "stats") and coco_eval.stats is not None and len(coco_eval.stats) >= 3:
+        ap = float(coco_eval.stats[0])
+        ap50 = float(coco_eval.stats[1])
+        ap75 = float(coco_eval.stats[2])
+    else:
+        ap = ap50 = ap75 = 0.0
+
+    return {
+        "AP": ap,
+        "AP50": ap50,
+        "AP75": ap75,
+        "gt_count": gt_count,
+        "bin": bin_name
+    }
+
 
 def run_longest_edge_eval(gt_path: str, pred_path: str) -> dict:
     """
@@ -207,7 +254,7 @@ def run_longest_edge_eval(gt_path: str, pred_path: str) -> dict:
     for bin_name, (edge_min, edge_max) in EDGE_BINS.items():
         print(f"  Evaluating bin: {bin_name} [{edge_min}, {edge_max}) px...")
 
-        metrics = eval_edge_bin(coco_gt, predictions, bin_name, edge_min, edge_max)
+        metrics = eval_edge_bin_coco_style(coco_gt, predictions, bin_name, edge_min, edge_max)
         metrics["edge_range"] = [edge_min, edge_max if edge_max != float("inf") else 1e10]
         metrics["gt_percent"] = round(100 * metrics["gt_count"] / total_gt, 1)
 

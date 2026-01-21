@@ -6,6 +6,7 @@ Evaluates AP across 7 geometric size bins based on object area.
 Usage:
     python eval/eval_finegrained_size.py --pred predictions.json
     python eval/eval_finegrained_size.py --gt path/to/gt.json --pred predictions.json --out results.json
+    python eval/eval_finegrained_size.py --gt coco/annotations/instances_val2017.json --pred inference_results/cascade_dn_detr_005_cocoval2017.json --out results/cascadedetr_finegrained_metrics.json
 """
 
 import argparse
@@ -18,14 +19,15 @@ from pycocotools.cocoeval import COCOeval
 
 # Fine-grained size bins (area thresholds based on side^2)
 SIZE_BINS = {
-    "tiny": (0, 16**2),           # < 256
-    "xs": (16**2, 32**2),         # 256 - 1024
-    "small": (32**2, 64**2),      # 1024 - 4096
-    "medium": (64**2, 128**2),    # 4096 - 16384
-    "large": (128**2, 256**2),    # 16384 - 65536
-    "xl": (256**2, 512**2),       # 65536 - 262144
-    "huge": (512**2, 1e10),       # >= 262144
+    "xss": (0, 12**2),
+    "xs": (12**2, 20**2),
+    "s": (20**2, 32**2),
+    "m": (32**2, 64**2),
+    "l": (64**2, 128**2),
+    "xl": (128**2, 256**2),
+    "xxl": (256**2, 1e10),
 }
+
 
 
 def parse_args():

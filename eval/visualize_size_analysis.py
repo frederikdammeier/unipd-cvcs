@@ -11,15 +11,15 @@ import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = ROOT / "results"
 GT_PATH = (
     ROOT
-    / "data"
-    / "coco2017"
-    / "annotations_trainval2017"
+    / "coco"
     / "annotations"
     / "instances_val2017.json"
 )
@@ -31,27 +31,36 @@ MODELS = {
         "marker": "o",
         "finegrained": "fasterrcnn_finegrained_metrics.json",
         "longest_edge": "fasterrcnn_longest_edge.json",
+        "shortest_edge": "fasterrcnn_shortest_edge.json",
     },
-    "FCOS": {
-        "color": "#ff7f0e",
-        "marker": "s",
-        "finegrained": "fcos_finegrained_metrics.json",
-        "longest_edge": "fcos_longest_edge.json",
-    },
+    # "FCOS": {
+    #     "color": "#ff7f0e",
+    #     "marker": "s",
+    #     "finegrained": "fcos_finegrained_metrics.json",
+    #     "longest_edge": "fcos_longest_edge.json",
+    # },
     "RetinaNet": {
         "color": "#2ca02c",
         "marker": "^",
         "finegrained": "retinanet_finegrained_metrics.json",
         "longest_edge": "retinanet_longest_edge.json",
+        "shortest_edge": "retinanet_shortest_edge.json",
     },
+    "Cascade-DETR": {
+        "color": "#ff7f0e",
+        "marker": "s",
+        "finegrained": "cascadedetr_finegrained_metrics.json",
+        "longest_edge": "cascadedetr_longest_edge.json",
+        "shortest_edge": "cascadedetr_shortest_edge.json",
+    }
 }
 
 # Bin definitions
-AREA_BINS = ["tiny", "xs", "small", "medium", "large", "xl", "huge"]
-AREA_BIN_LABELS = ["<16^2", "16^2-32^2", "32^2-64^2", "64^2-128^2", "128^2-256^2", "256^2-512^2", ">=512^2"]
+AREA_BINS = ["xxs", "xs", "s", "m", "l", "xl", "xxl"]
+AREA_BIN_LABELS = ["xxs", "xs", "s", "m", "l", "xl", "xxl"]
 
-EDGE_BINS = ["tiny", "xs", "small", "medium", "large", "xl", "huge"]
-EDGE_BIN_LABELS = ["<16", "16-32", "32-64", "64-128", "128-256", "256-512", ">=512"]
+EDGE_BINS = ["xxs", "xs", "s", "m", "l", "xl", "xxl"]
+EDGE_BIN_LABELS = ["xxs", "xs", "s", "m", "l", "xl", "xxl"]
 
 # COCO standard thresholds
 COCO_SMALL = 32 * 32  # 1024
@@ -87,13 +96,22 @@ def load_metrics():
             metrics[model_name]["finegrained"] = None
 
         # Load longest edge metrics
-        edge_file = RESULTS_DIR / config["longest_edge"]
-        if edge_file.exists():
-            with edge_file.open("r") as f:
+        longest_edge_file = RESULTS_DIR / config["longest_edge"]
+        if longest_edge_file.exists():
+            with longest_edge_file.open("r") as f:
                 metrics[model_name]["longest_edge"] = json.load(f)
         else:
             print(f"  Warning: {edge_file} not found")
             metrics[model_name]["longest_edge"] = None
+
+        # Load shortest edge metrics
+        shortest_edge_file = RESULTS_DIR / config["shortest_edge"]
+        if shortest_edge_file.exists():
+            with shortest_edge_file.open("r") as f:
+                metrics[model_name]["shortest_edge"] = json.load(f)
+        else:
+            print(f"  Warning: {edge_file} not found")
+            metrics[model_name]["shortest_edge"] = None
 
     return metrics
 
@@ -145,7 +163,7 @@ def plot_gt_distribution(areas, output_path):
 
 def plot_ap_by_area_bins(metrics, output_path):
     """Plot AP vs area bins for all models."""
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(3.5, 2.5))
 
     x = np.arange(len(AREA_BINS))
 
@@ -158,31 +176,78 @@ def plot_ap_by_area_bins(metrics, output_path):
         aps = [model_metrics.get(bin_name, {}).get("AP", 0) for bin_name in AREA_BINS]
 
         ax.plot(x, aps, marker=config["marker"], color=config["color"],
-                linewidth=2, markersize=8, label=model_name)
+                linewidth=2, markersize=5, label=model_name)
 
-    ax.set_xlabel("Object Size Bin (by Area)", fontsize=12)
-    ax.set_ylabel("Average Precision (AP)", fontsize=12)
-    ax.set_title("Detection Performance by Object Area", fontsize=14, fontweight="bold")
+    ax.set_xlabel("Object size bin (by area)", fontsize=9)
+    ax.set_ylabel("Average precision (AP)", fontsize=9)
+    # ax.set_title("Detection Performance by Object Area", fontsize=14, fontweight="bold")
 
     ax.set_xticks(x)
-    ax.set_xticklabels(AREA_BIN_LABELS, rotation=45, ha="right")
+    ax.set_xticklabels(AREA_BIN_LABELS, fontsize=8)
     ax.set_ylim(0, 0.7)
+    ax.tick_params(axis='y', labelsize=8)
 
-    ax.legend(loc="upper left", fontsize=10)
+    ax.legend(loc="upper left", fontsize=7)
     ax.grid(True, alpha=0.3)
 
     # Add vertical line separating COCO small from medium
-    ax.axvline(1.5, color="red", linestyle="--", alpha=0.5, label="COCO small/medium")
+    # ax.axvline(1.5, color="red", linestyle="--", alpha=0.5, label="COCO small/medium")
 
+    # Tight layout
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close()
+    
+    # Save as PDF
+    with PdfPages(output_path) as pdf:
+        pdf.savefig(fig, bbox_inches='tight')
+    
+    plt.close(fig)
     print(f"Saved: {output_path}")
 
+def plot_ap50_by_area_bins(metrics, output_path):
+    """Plot AP50 vs area bins for all models."""
+    fig, ax = plt.subplots(figsize=(3.5, 2.5))
+
+    x = np.arange(len(AREA_BINS))
+
+    for model_name, config in MODELS.items():
+        model_metrics = metrics[model_name].get("finegrained")
+        if model_metrics is None:
+            print(f"  Warning: No finegrained metrics for {model_name}, skipping")
+            continue
+
+        aps = [model_metrics.get(bin_name, {}).get("AP50", 0) for bin_name in AREA_BINS]
+
+        ax.plot(x, aps, marker=config["marker"], color=config["color"],
+                linewidth=2, markersize=5, label=model_name)
+
+    ax.set_xlabel("Object size bin (by area)", fontsize=9)
+    ax.set_ylabel("AP50", fontsize=9)
+    # ax.set_title("Detection Performance by Object Area", fontsize=14, fontweight="bold")
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(AREA_BIN_LABELS, fontsize=8)
+    ax.set_ylim(0, 1.0)
+    ax.tick_params(axis='y', labelsize=8)
+
+    ax.legend(loc="upper left", fontsize=7)
+    ax.grid(True, alpha=0.3)
+
+    # Add vertical line separating COCO small from medium
+    # ax.axvline(1.5, color="red", linestyle="--", alpha=0.5, label="COCO small/medium")
+
+    # Tight layout
+    plt.tight_layout()
+    
+    # Save as PDF
+    with PdfPages(output_path) as pdf:
+        pdf.savefig(fig, bbox_inches='tight')
+    
+    plt.close(fig)
+    print(f"Saved: {output_path}")
 
 def plot_ap_by_longest_edge(metrics, output_path):
     """Plot AP vs longest edge bins for all models."""
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(3.5, 2.5))
 
     x = np.arange(len(EDGE_BINS))
 
@@ -195,26 +260,67 @@ def plot_ap_by_longest_edge(metrics, output_path):
         aps = [model_metrics.get(bin_name, {}).get("AP", 0) for bin_name in EDGE_BINS]
 
         ax.plot(x, aps, marker=config["marker"], color=config["color"],
-                linewidth=2, markersize=8, label=model_name)
+                linewidth=2, markersize=5, label=model_name)
 
-    ax.set_xlabel("Object Size Bin (by Longest Edge, pixels)", fontsize=12)
-    ax.set_ylabel("Average Precision (AP)", fontsize=12)
-    ax.set_title("Detection Performance by Longest Edge", fontsize=14, fontweight="bold")
+    ax.set_xlabel("Object size bin (by longest edge, pixels)", fontsize=9)
+    ax.set_ylabel("Average precision (AP)", fontsize=9)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(EDGE_BIN_LABELS, rotation=45, ha="right")
+    ax.set_xticklabels(EDGE_BIN_LABELS, fontsize=8)
     ax.set_ylim(0, 0.45)
+    ax.tick_params(axis='y', labelsize=8)
 
-    ax.legend(loc="upper left", fontsize=10)
+    ax.legend(loc="upper left", fontsize=7)
     ax.grid(True, alpha=0.3)
 
     # Highlight undetectable region
-    ax.axvspan(-0.5, 1.5, alpha=0.2, color="red", label="Undetectable (<32px)")
-    ax.text(0.5, 0.35, "Undetectable\nRegion", ha="center", fontsize=9, color="darkred")
+    # ax.axvspan(-0.5, 1.5, alpha=0.2, color="red", label="Undetectable (<32px)")
+    # ax.text(0.5, 0.35, "Undetectable\nRegion", ha="center", fontsize=9, color="darkred")
 
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close()
+    # Save as PDF
+    with PdfPages(output_path) as pdf:
+        pdf.savefig(fig, bbox_inches='tight')
+    
+    plt.close(fig)
+    print(f"Saved: {output_path}")
+
+def plot_ap_by_shortest_edge(metrics, output_path):
+    """Plot AP vs shortest edge bins for all models."""
+    fig, ax = plt.subplots(figsize=(3.5, 2.5))
+
+    x = np.arange(len(EDGE_BINS))
+
+    for model_name, config in MODELS.items():
+        model_metrics = metrics[model_name].get("shortest_edge")
+        if model_metrics is None:
+            print(f"  Warning: No shortest_edge metrics for {model_name}, skipping")
+            continue
+
+        aps = [model_metrics.get(bin_name, {}).get("AP", 0) for bin_name in EDGE_BINS]
+
+        ax.plot(x, aps, marker=config["marker"], color=config["color"],
+                linewidth=2, markersize=5, label=model_name)
+
+    ax.set_xlabel("Object size bin (by shortest edge, pixels)", fontsize=9)
+    ax.set_ylabel("Average precision (AP)", fontsize=9)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(EDGE_BIN_LABELS, fontsize=8)
+    ax.set_ylim(0, 0.45)
+    ax.tick_params(axis='y', labelsize=8)
+
+    ax.legend(loc="upper left", fontsize=7)
+    ax.grid(True, alpha=0.3)
+
+    # Highlight undetectable region
+    # ax.axvspan(-0.5, 1.5, alpha=0.2, color="red", label="Undetectable (<32px)")
+    # ax.text(0.5, 0.35, "Undetectable\nRegion", ha="center", fontsize=9, color="darkred")
+
+    # Save as PDF
+    with PdfPages(output_path) as pdf:
+        pdf.savefig(fig, bbox_inches='tight')
+    
+    plt.close(fig)
     print(f"Saved: {output_path}")
 
 
@@ -238,10 +344,16 @@ def main():
     plot_gt_distribution(areas, RESULTS_DIR / "gt_size_distribution.png")
 
     # Plot 2: AP by area bins
-    plot_ap_by_area_bins(metrics, RESULTS_DIR / "ap_by_area_bins.png")
+    plot_ap_by_area_bins(metrics, RESULTS_DIR / "ap_by_area_bins.pdf")
+
+    # Plot 2: AP50 by area bins
+    plot_ap50_by_area_bins(metrics, RESULTS_DIR / "ap50_by_area_bins.pdf")
 
     # Plot 3: AP by longest edge
-    plot_ap_by_longest_edge(metrics, RESULTS_DIR / "ap_by_longest_edge.png")
+    plot_ap_by_longest_edge(metrics, RESULTS_DIR / "ap_by_longest_edge.pdf")
+
+    # Plot 4: AP by shortest edge
+    plot_ap_by_shortest_edge(metrics, RESULTS_DIR / "ap_by_shortest_edge.pdf")
 
     print("\n" + "=" * 60)
     print("All plots saved to results/")

@@ -96,8 +96,8 @@ def create_visualization(class_counts, output_path):
     ax.set_axisbelow(True)
     
     # Remove top and right spines
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
     
     # Tight layout to minimize white space
     plt.tight_layout(pad=0.2)
